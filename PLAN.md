@@ -4,7 +4,7 @@ Target: NetHack 5.0 on Powkiddy X55 (JELOS) with gamepad controls.
 
 ## Phases
 
-- [ ] **Phase 1: Basic Rendering**
+- [x] **Phase 1: Basic Rendering** (COMPLETE)
   - Create `win/sdl2/` directory with `winsdl2.h` and `winsdl2.c`
   - Data structures: `SDL2_WinDesc`, `SDL2_DisplayDesc`, map buffer
   - SDL2 init with KMSDRM fullscreen, load DejaVu Sans Mono font
@@ -43,7 +43,13 @@ Target: NetHack 5.0 on Powkiddy X55 (JELOS) with gamepad controls.
 
 ## Progress Log
 
-*(Updated after each phase)*
+### Phase 1 Complete
+- SDL2 window port created with basic rendering
+- Cross-compilation working for aarch64
+- Deployed to X55 at /storage/roms/ports/nethack/
+- Launcher script at /storage/roms/ports/NetHack.sh
+- Ready for testing: launch via JELOS Ports menu
+- Known limitations: text input not working (Phase 4), menus need polish (Phase 3)
 
 ---
 
