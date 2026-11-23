@@ -88,8 +88,6 @@ To switch tilesets, modify `SDL2_TILE_WIDTH`/`SDL2_TILE_HEIGHT` in
 
 ## Known Limitations
 
-- On-screen keyboard not yet implemented (text input like character names
-  requires SSH or pre-configured options file)
 - Designed specifically for 1280x720 screens
 
 ## License
