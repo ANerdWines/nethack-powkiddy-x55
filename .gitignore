@@ -1,0 +1,45 @@
+# Build artifacts
+nethack-src/targets/
+*.o
+*.a
+
+# Temporary files
+*.jpg
+*.tmp
+temp*
+
+# Debug images (keep only the tilesets)
+cat_*.png
+check_*.png
+dog_*.png
+first_*.png
+floor_*.png
+gold_*.png
+human_*.png
+mon_*.png
+row*.png
+search_*.png
+tile_*.png
+tiles_*.png
+*_row*.png
+
+# Development tools
+grab-screenshot.sh
+screen-captures/
+sdl2-port-backup/
+
+# Editor/IDE
+.vscode/
+*.swp
+*~
+
+# macOS
+.DS_Store
+
+# Claude Code
+.claude/
+
+# Development notes (contains local info)
+CLAUDE.md
+DEVELOPMENT.md
+PLAN.md
