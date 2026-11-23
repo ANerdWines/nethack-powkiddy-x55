@@ -2,6 +2,8 @@
 
 A port of NetHack 5.0 for the Powkiddy X55 handheld running JELOS.
 
+![NetHack running on Powkiddy X55](screenshot.png)
+
 ## Tested Configuration
 
 - **Device:** Powkiddy X55 (Rockchip RK3566, 1280x720 screen)
