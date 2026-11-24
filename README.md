@@ -4,6 +4,9 @@ A port of NetHack 5.0 for the Powkiddy X55 handheld running JELOS.
 
 ![NetHack running on Powkiddy X55](screenshot.png)
 
+## Context
+I have been playing Nethack since the early 90's and every few years get an itch, play like crazy until the itch is scratched and then leave it off for a while.  Needless to say I have never ascended or what ever it is called (ie I normally get killed in a stupid situation on level 15 or so).  One rememberable session was playing it on a port on my daughters' Nintendo DS because it had two screens, one with a full sized map and due to the ease of playing with the buttons.  So when Nethack 5 came out in May 2026 I was thinking it would be fun to play it on my Nintendo Switch, but a heart to heart with Claude disuaded me of that idea as not so easy programming for non profilt fun on the Switch.  Then I remembered my 75€ game emulator a PowKiddy X55 and began another heart to heart with Claude and this is the fruit of that converstation....
+
 ## Tested Configuration
 
 - **Device:** Powkiddy X55 (Rockchip RK3566, 1280x720 screen)
@@ -29,7 +32,7 @@ gamepad controls. No keyboard required.
 | B | Cancel (ESC) |
 | X | Pick up (`,`) |
 | Y | Search (`s`) |
-| L1 / R1 | Page up/down in menus and message history |
+| L1 / R1 | up/down |
 | L2 / R2 | Zoom out/in (tile mode) |
 | Start | Command menu (access all commands) |
 | Select | Inventory (`i`) |
