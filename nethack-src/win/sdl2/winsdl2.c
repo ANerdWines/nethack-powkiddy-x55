@@ -80,14 +80,24 @@ static char sdl2_message_menu(char let, int how, const char *mesg);
 static win_request_info *sdl2_ctrl_nhwindow(winid window, int request,
                                             win_request_info *wri);
 
-/* Screenshot function - saves current screen to PNG */
+/* Screenshot pending flag - set by button, captured during refresh */
+static boolean screenshot_pending = FALSE;
+
+/* Request a screenshot - triggers immediate refresh and capture */
 static void
-sdl2_screenshot(void)
+sdl2_screenshot_request(void)
+{
+    screenshot_pending = TRUE;
+    sdl2_refresh();  /* Capture immediately */
+}
+
+/* Actually capture screenshot - called from refresh after drawing */
+static void
+sdl2_screenshot_capture(void)
 {
     SDL_Surface *surface;
     int w, h;
-    char filename[256];
-    static int screenshot_num = 0;
+    const char *filename = "/storage/roms/ports/nethack/screenshot.png";
 
     if (!sdl2Display || !sdl2Display->renderer)
         return;
@@ -96,30 +106,84 @@ sdl2_screenshot(void)
 
     surface = SDL_CreateRGBSurfaceWithFormat(0, w, h, 32, SDL_PIXELFORMAT_RGBA32);
     if (!surface) {
-        raw_print("Screenshot: failed to create surface");
         return;
     }
 
     if (SDL_RenderReadPixels(sdl2Display->renderer, NULL, SDL_PIXELFORMAT_RGBA32,
                              surface->pixels, surface->pitch) != 0) {
-        raw_print("Screenshot: failed to read pixels");
         SDL_FreeSurface(surface);
         return;
     }
 
-    /* Save with incrementing number to avoid overwriting */
-    snprintf(filename, sizeof(filename),
-             "/storage/roms/ports/nethack/screenshot_%03d.png", screenshot_num++);
-
-    if (IMG_SavePNG(surface, filename) != 0) {
-        raw_print("Screenshot: failed to save PNG");
-    } else {
-        char msg[300];
-        snprintf(msg, sizeof(msg), "Screenshot saved: %s", filename);
-        raw_print(msg);
-    }
-
+    IMG_SavePNG(surface, filename);
     SDL_FreeSurface(surface);
+}
+
+/*
+ * Cycle through display modes: ASCII -> Official 16x16 -> Nevanda 32x32 -> ASCII
+ * Returns the name of the new mode for display to the user.
+ */
+static const char *
+sdl2_cycle_display_mode(void)
+{
+    if (!sdl2Display)
+        return "Error";
+
+    /* Cycle to next mode */
+    switch (sdl2Display->display_mode) {
+    case SDL2_DISPLAY_ASCII:
+        /* Try 16x16 tiles next */
+        if (sdl2Display->tileset_16) {
+            sdl2Display->display_mode = SDL2_DISPLAY_TILES_16;
+            sdl2Display->tileset = sdl2Display->tileset_16;
+            sdl2Display->tile_src_w = 16;
+            sdl2Display->tile_src_h = 16;
+            sdl2Display->use_tiles = TRUE;
+            return "Official 16x16";
+        }
+        /* Fall through to try 32x32 */
+        /* FALLTHRU */
+    case SDL2_DISPLAY_TILES_16:
+        /* Try 32x32 tiles next */
+        if (sdl2Display->tileset_32) {
+            sdl2Display->display_mode = SDL2_DISPLAY_TILES_32;
+            sdl2Display->tileset = sdl2Display->tileset_32;
+            sdl2Display->tile_src_w = 32;
+            sdl2Display->tile_src_h = 32;
+            sdl2Display->use_tiles = TRUE;
+            return "Nevanda 32x32";
+        }
+        /* Fall through to ASCII */
+        /* FALLTHRU */
+    case SDL2_DISPLAY_TILES_32:
+    default:
+        /* Back to ASCII */
+        sdl2Display->display_mode = SDL2_DISPLAY_ASCII;
+        sdl2Display->tileset = NULL;
+        sdl2Display->use_tiles = FALSE;
+        return "ASCII";
+    }
+}
+
+/*
+ * Get the name of the current display mode
+ */
+static const char *
+sdl2_get_display_mode_name(void)
+{
+    if (!sdl2Display)
+        return "Unknown";
+
+    switch (sdl2Display->display_mode) {
+    case SDL2_DISPLAY_ASCII:
+        return "ASCII";
+    case SDL2_DISPLAY_TILES_16:
+        return "Official 16x16";
+    case SDL2_DISPLAY_TILES_32:
+        return "Nevanda 32x32";
+    default:
+        return "Unknown";
+    }
 }
 
 /* Window procs structure */
@@ -483,27 +547,63 @@ sdl2_init_nhwindows(int *argcp, char **argv)
         raw_printf("SDL2: Warning - Failed to init SDL_image: %s", IMG_GetError());
     }
 
-    /* Load tileset */
+    /* Load both tilesets */
     sdl2Display->tileset = NULL;
+    sdl2Display->tileset_16 = NULL;
+    sdl2Display->tileset_32 = NULL;
     sdl2Display->use_tiles = FALSE;
+    sdl2Display->display_mode = SDL2_DISPLAY_ASCII;
+    sdl2Display->tile_src_w = 32;
+    sdl2Display->tile_src_h = 32;
+    sdl2Display->tileset_cols = SDL2_TILE_COLS;
+
     {
         SDL_Surface *tile_surface;
-        const char *tileset_path = "/storage/roms/ports/nethack/nevanda_5.0_v2.png";
+        const char *tileset_16_path = "/storage/roms/ports/nethack/Nhtiles-500-16x16.png";
+        const char *tileset_32_path = "/storage/roms/ports/nethack/nevanda_5.0_v2.png";
 
-        tile_surface = IMG_Load(tileset_path);
+        /* Load 16x16 official tileset */
+        tile_surface = IMG_Load(tileset_16_path);
         if (tile_surface) {
-            sdl2Display->tileset = SDL_CreateTextureFromSurface(
+            sdl2Display->tileset_16 = SDL_CreateTextureFromSurface(
                 sdl2Display->renderer, tile_surface);
             SDL_FreeSurface(tile_surface);
-            if (sdl2Display->tileset) {
-                sdl2Display->use_tiles = TRUE;
-                sdl2Display->tileset_cols = SDL2_TILE_COLS;
-                raw_printf("SDL2: Loaded tileset %s", tileset_path);
-            } else {
-                raw_printf("SDL2: Failed to create tileset texture: %s", SDL_GetError());
+            if (sdl2Display->tileset_16) {
+                raw_printf("SDL2: Loaded 16x16 tileset");
             }
         } else {
-            raw_printf("SDL2: Failed to load tileset %s: %s", tileset_path, IMG_GetError());
+            raw_printf("SDL2: Note: 16x16 tileset not found (optional)");
+        }
+
+        /* Load 32x32 Nevanda tileset */
+        tile_surface = IMG_Load(tileset_32_path);
+        if (tile_surface) {
+            sdl2Display->tileset_32 = SDL_CreateTextureFromSurface(
+                sdl2Display->renderer, tile_surface);
+            SDL_FreeSurface(tile_surface);
+            if (sdl2Display->tileset_32) {
+                raw_printf("SDL2: Loaded 32x32 tileset");
+            }
+        } else {
+            raw_printf("SDL2: Note: 32x32 tileset not found (optional)");
+        }
+
+        /* Default to 32x32 tiles if available, else 16x16, else ASCII */
+        if (sdl2Display->tileset_32) {
+            sdl2Display->display_mode = SDL2_DISPLAY_TILES_32;
+            sdl2Display->tileset = sdl2Display->tileset_32;
+            sdl2Display->tile_src_w = 32;
+            sdl2Display->tile_src_h = 32;
+            sdl2Display->use_tiles = TRUE;
+        } else if (sdl2Display->tileset_16) {
+            sdl2Display->display_mode = SDL2_DISPLAY_TILES_16;
+            sdl2Display->tileset = sdl2Display->tileset_16;
+            sdl2Display->tile_src_w = 16;
+            sdl2Display->tile_src_h = 16;
+            sdl2Display->use_tiles = TRUE;
+        } else {
+            sdl2Display->display_mode = SDL2_DISPLAY_ASCII;
+            sdl2Display->use_tiles = FALSE;
         }
     }
 
@@ -562,6 +662,11 @@ sdl2_exit_nhwindows(const char *str)
             SDL_GameControllerClose(sdl2Display->controller);
         if (sdl2Display->font)
             TTF_CloseFont(sdl2Display->font);
+        /* Destroy tileset textures before renderer */
+        if (sdl2Display->tileset_16)
+            SDL_DestroyTexture(sdl2Display->tileset_16);
+        if (sdl2Display->tileset_32)
+            SDL_DestroyTexture(sdl2Display->tileset_32);
         if (sdl2Display->renderer)
             SDL_DestroyRenderer(sdl2Display->renderer);
         if (sdl2Display->window)
@@ -1302,10 +1407,10 @@ sdl2_render_tile(int map_x, int map_y, int tileidx)
     tile_col = tileidx % sdl2Display->tileset_cols;
     tile_row = tileidx / sdl2Display->tileset_cols;
 
-    srcrect.x = tile_col * SDL2_TILE_WIDTH;
-    srcrect.y = tile_row * SDL2_TILE_HEIGHT;
-    srcrect.w = SDL2_TILE_WIDTH;
-    srcrect.h = SDL2_TILE_HEIGHT;
+    srcrect.x = tile_col * sdl2Display->tile_src_w;
+    srcrect.y = tile_row * sdl2Display->tile_src_h;
+    srcrect.w = sdl2Display->tile_src_w;
+    srcrect.h = sdl2Display->tile_src_h;
 
     /* Calculate destination position on screen (using current zoom)
      * Status line is at top (font_height pixels), then tiles below
@@ -1563,6 +1668,12 @@ sdl2_refresh(void)
         }
     }
 
+    /* Capture screenshot if pending (before present, after all drawing) */
+    if (screenshot_pending) {
+        sdl2_screenshot_capture();
+        screenshot_pending = FALSE;
+    }
+
     /* Present */
     SDL_RenderPresent(sdl2Display->renderer);
 }
@@ -1763,7 +1874,7 @@ sdl2_nhgetch(void)
                 case SDLK_COLON: return ':';
                 case SDLK_SEMICOLON: return ';';
                 case SDLK_VOLUMEUP:
-                    sdl2_screenshot();
+                    sdl2_screenshot_request();
                     break;  /* Don't return - just take screenshot */
                 default:
                     if (event.key.keysym.sym >= SDLK_a &&
@@ -1839,7 +1950,7 @@ sdl2_nhgetch(void)
                 case SDL_CONTROLLER_BUTTON_LEFTSTICK:
                     return 'g';  /* prefix for "go" (move until something) */
                 case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
-                    sdl2_screenshot();
+                    sdl2_screenshot_request();
                     break;  /* Screenshot - don't return a key */
 
                 /* D-pad is handled entirely by the repeat system below */
@@ -1940,6 +2051,9 @@ sdl2_yn_function(const char *query, const char *resp, char def)
     } else if (resp && strchr(resp, '?')) {
         /* Inventory/item selection prompt with ? */
         snprintf(prompt_buf, sizeof(prompt_buf), "%s (Y=menu X=all B=cancel)", query);
+    } else if (resp && strchr(resp, 'y') && strchr(resp, 'r') && strchr(resp, 'n')) {
+        /* Yes/Recover/No prompt (like save game recovery) */
+        snprintf(prompt_buf, sizeof(prompt_buf), "%s (A=yes X=recover B=no)", query);
     } else if (resp && strchr(resp, 'y') && strchr(resp, 'n')) {
         /* Yes/no prompt */
         snprintf(prompt_buf, sizeof(prompt_buf), "%s (A=yes B=no)", query);
@@ -1989,9 +2103,12 @@ sdl2_yn_function(const char *query, const char *resp, char def)
             ch = '?';
         }
         if (ch == ',') {
-            /* X button -> '*' for inventory, 'a' for character selection */
+            /* X button -> 'r' for recover, '*' for inventory, 'a' for char selection */
             if (!resp || !*resp) {
                 return 'a';  /* All random for character selection */
+            }
+            if (strchr(resp, 'r')) {
+                return 'r';  /* Recover option for save game recovery */
             }
             ch = '*';
         }
@@ -2419,6 +2536,8 @@ sdl2_command_menu(void)
         int cmd;  /* int to allow special values */
         const char *desc;
     } commands[] = {
+        /* Display Settings */
+        { -4, "Display mode (cycle)" },   /* Special: cycle ASCII/tiles */
         /* Movement/Actions */
         { 'o', "Open door" },
         { 'c', "Close door" },
@@ -2499,8 +2618,12 @@ sdl2_command_menu(void)
                 SDL_RenderFillRect(sdl2Display->renderer, &highlight);
             }
 
-            if (commands[i].cmd < 0) {
-                /* Extended commands show # prefix */
+            if (commands[i].cmd == -4) {
+                /* Display mode shows current mode */
+                snprintf(buf, sizeof(buf), "* - %s [%s]",
+                         commands[i].desc, sdl2_get_display_mode_name());
+            } else if (commands[i].cmd < 0) {
+                /* Other extended commands show # prefix */
                 snprintf(buf, sizeof(buf), "# - %s", commands[i].desc);
             } else {
                 snprintf(buf, sizeof(buf), "%c - %s", commands[i].cmd, commands[i].desc);
@@ -2524,7 +2647,14 @@ sdl2_command_menu(void)
 
         /* Select current */
         if (ch == '.' || ch == '\r' || ch == ' ') {
-            return commands[cursor].cmd;
+            int cmd = commands[cursor].cmd;
+            /* Handle display mode cycling specially */
+            if (cmd == -4) {
+                sdl2_cycle_display_mode();
+                /* Stay in menu to let user see the change and continue */
+                continue;
+            }
+            return cmd;
         }
 
         /* Navigate - must check BEFORE direct selection to avoid conflicts */

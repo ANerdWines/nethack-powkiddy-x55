@@ -21,7 +21,7 @@ gamepad controls. No keyboard required.
 - Full NetHack 5.0 gameplay
 - Tile graphics with zoom support (L2/R2 to zoom in/out)
 - Gamepad-only controls with command menu
-- Two tileset options: Official 16x16 or Nevanda 32x32
+- Three display modes:  ASCII, Official Tileset 16x16, or Nevanda Tileset 32x32
 
 ## Controls
 
@@ -79,21 +79,10 @@ Requires an aarch64 cross-compiler (tested with `aarch64-linux-gnu-gcc` 14.2.0).
 See `nethack-src/sys/unix/hints/include/cross-pre2.500` for build configuration
 details.
 
-## Tilesets
-
-Two tilesets are included:
-
-| Tileset | File | Tile Size | Description |
-|---------|------|-----------|-------------|
-| Nevanda | `nevanda_5.0_v2.png` | 32x32 | Default, detailed graphics |
-| Official | `Nhtiles-500-16x16.png` | 16x16 | Classic NetHack tiles |
-
-To switch tilesets, modify `SDL2_TILE_WIDTH`/`SDL2_TILE_HEIGHT` in
-`win/sdl2/winsdl2.h` and the tileset path in `win/sdl2/winsdl2.c`, then rebuild.
-
 ## Known Limitations
 
-- Designed specifically for 1280x720 screens
+- Designed specifically for 1280x720 screen of Powkiddy x55
+- Only tested on JELOS 20231029 
 
 ## License
 
@@ -113,4 +102,4 @@ of the NGPL. If you distribute modified versions, you must:
 
 - **NetHack DevTeam** - NetHack 5.0
 - **Nevanda tileset** - Community contribution
-- **SDL2 port** - Created for Powkiddy X55/JELOS
+- **SDL2 port** - Created for Powkiddy X55/JELOS by Claude at the direction of Andrew

@@ -25,10 +25,18 @@
 #define SDL2_COLS 80
 #define SDL2_ROWS 25
 
-/* Tile dimensions */
+/* Tile dimensions (maximum, for Nevanda tileset) */
 #define SDL2_TILE_WIDTH  32      /* Source tile size in tileset */
 #define SDL2_TILE_HEIGHT 32
 #define SDL2_TILE_COLS   40      /* Tiles per row in tileset */
+
+/* Display modes */
+typedef enum {
+    SDL2_DISPLAY_ASCII = 0,      /* Text-only mode */
+    SDL2_DISPLAY_TILES_16,       /* 16x16 official tileset */
+    SDL2_DISPLAY_TILES_32,       /* 32x32 Nevanda tileset */
+    SDL2_DISPLAY_MODE_COUNT
+} sdl2_display_mode;
 
 /* Zoom levels - tile display sizes */
 #define SDL2_ZOOM_LEVELS     5
@@ -135,10 +143,14 @@ typedef struct SDL2_DisplayDesc {
     int font_width, font_height;
 
     /* Tileset */
-    SDL_Texture *tileset;        /* Tileset texture (NULL if not loaded) */
-    int tileset_cols;            /* Tiles per row in tileset */
+    SDL_Texture *tileset;        /* Current tileset texture */
+    SDL_Texture *tileset_16;     /* 16x16 official tileset */
+    SDL_Texture *tileset_32;     /* 32x32 Nevanda tileset */
+    int tileset_cols;            /* Tiles per row in tileset (always 40) */
     boolean use_tiles;           /* Whether to use tiles for map */
-    int zoom_level;              /* Current zoom level (0-3) */
+    int zoom_level;              /* Current zoom level (0-4) */
+    sdl2_display_mode display_mode;  /* Current display mode */
+    int tile_src_w, tile_src_h;  /* Current tileset source tile dimensions */
 
     /* Tile viewport (for scrolling map view) */
     int view_cx, view_cy;        /* Viewport center (player position) */
